@@ -80,12 +80,18 @@ pi install npm:@juicesharp/rpiv-pi
 /rpiv-setup
 ```
 
+Supported web providers:
+
+- `@juicesharp/rpiv-web-tools` - Brave-backed `web_search`/`web_fetch` tools.
+- `pi-web-access` - Exa (Free and API), Perplexity and Gemini API backed`web_search`, `fetch_content`, `code_search`, `get_search_content` tools.
+
 3. Restart your Pi Agent session.
 
 4. *(Optional)* Configure web search:
 
 ```
-/web-search-config
+/web-search-config # @juicesharp/rpiv-web-tools / Brave
+/google-account # pi-web-access Google account flow
 ```
 
 ### First Session
@@ -185,7 +191,8 @@ Invoke via `/skill:<name>` from inside a Pi Agent session.
 | `/btw` | Ask a side question without polluting the main conversation _(requires `@juicesharp/rpiv-btw`, opt-in)_ |
 | `/languages` | Pick the UI language for rpiv-* TUI strings (Deutsch / English / Español / Français / Português / Português (Brasil) / Русский / Українська) |
 | `/todos` | Show current todo list |
-| `/web-search-config` | Pick the active search provider and set its API key |
+| `/web-search-config` | Pick the active `@juicesharp/rpiv-web-tools` search provider and set its API key |
+| `/websearch`, `/curator`, `/search`, `/google-account` | `pi-web-access` web-search/fetch workflows |
 
 ### Agents
 
@@ -220,7 +227,7 @@ Pi Agent discovers extensions via `"extensions": ["./extensions"]` and skills vi
 
 ## Configuration
 
-- **Web search** - run `/web-search-config` to pick a provider (Brave, Tavily, Serper, Exa, Jina, or Firecrawl) and set its API key; the per-provider env var (e.g. `BRAVE_SEARCH_API_KEY`, `EXA_API_KEY`) also works and takes precedence
+- **Web search** - `/rpiv-setup` asks which supported web provider to install. For `@juicesharp/rpiv-web-tools`, run `/web-search-config` to pick a provider (Brave, Tavily, Serper, Exa, Jina, or Firecrawl) and set its API key; the per-provider env var (e.g. `BRAVE_SEARCH_API_KEY`, `EXA_API_KEY`) also works and takes precedence. For `pi-web-access`, run `/google-account` to configure account-backed search
 - **Advisor** - run `/advisor` to select a reviewer model and reasoning effort
 - **Side questions** _(opt-in: `pi install npm:@juicesharp/rpiv-btw`)_ - type `/btw <question>` anytime (even mid-stream) to ask the primary model a one-off question; answer appears in a borderless bottom overlay and never enters the main conversation
 - **UI language** - run `/languages` to pick the locale for rpiv-* TUI strings, or pass `pi --locale <code>` at startup. Detection priority: flag → `~/.config/rpiv-i18n/locale.json` → `LANG` / `LC_ALL` → English. LLM-facing copy stays English by design
@@ -239,8 +246,8 @@ Pi Agent discovers extensions via `"extensions": ["./extensions"]` and skills vi
 |---|---|---|
 | Warning about missing siblings on session start | Sibling plugins not installed | Run `/rpiv-setup` |
 | `/rpiv-setup` fails on a package | Network or registry issue | Check connection, retry with `pi install npm:<pkg>`, re-run `/rpiv-setup` |
-| `/rpiv-setup` says "requires interactive mode" | Running in headless mode | Install manually: `pi install npm:<pkg>` for each sibling |
-| `web_search` or `web_fetch` errors | Active provider's API key not configured | Run `/web-search-config` or set the matching env var (e.g. `BRAVE_SEARCH_API_KEY`, `EXA_API_KEY`) |
+| `/rpiv-setup` says "requires interactive mode" | Running in headless mode | Install required siblings manually with `pi install npm:<pkg>`, including one web provider: `npm:@juicesharp/rpiv-web-tools` or `npm:pi-web-access` |
+| Web search/fetch tools error | Chosen web provider missing or active provider's API key not configured | Re-run `/rpiv-setup` to choose/install a provider; for `@juicesharp/rpiv-web-tools`, run `/web-search-config` or set the matching env var (e.g. `BRAVE_SEARCH_API_KEY`, `EXA_API_KEY`); for `pi-web-access`, use `/google-account` if account-backed search is needed |
 | `advisor` tool not available after upgrade | Advisor model selection lost | Run `/advisor` to re-select a model |
 | Skills hang or serialize agent calls | Agent concurrency too low | Open `/agents`, raise `Settings → Max concurrency` |
 

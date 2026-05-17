@@ -46,14 +46,27 @@ export const SIBLINGS: readonly SiblingPlugin[] = [
 		provides: "i18n SDK for Pi extensions — /languages command + --locale flag + registerStrings/scope/tr API",
 	},
 	{
+		pkg: "npm:@juicesharp/rpiv-args",
+		matches: /rpiv-args(?![-\w])/i,
+		provides: "skill-argument resolver — substitutes $N/$ARGUMENTS in skill bodies",
+	},
+];
+
+/**
+ * Supported optional web provider Pi plugins.
+ *
+ * These are offered during `/rpiv-setup`, but are not required core siblings.
+ */
+export const WEB_PROVIDERS: readonly SiblingPlugin[] = [
+	{
 		pkg: "npm:@juicesharp/rpiv-web-tools",
 		matches: /rpiv-web-tools/i,
 		provides: "web_search + web_fetch tools + /web-search-config",
 	},
 	{
-		pkg: "npm:@juicesharp/rpiv-args",
-		matches: /rpiv-args(?![-\w])/i,
-		provides: "skill-argument resolver — substitutes $N/$ARGUMENTS in skill bodies",
+		pkg: "npm:pi-web-access",
+		matches: /pi-web-access/i,
+		provides: "web_search + fetch_content + code_search + get_search_content tools",
 	},
 ];
 

@@ -9,10 +9,10 @@
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { findMissingSiblings } from "./package-checks.js";
+import { findInstalledWebProviders, findMissingSiblings } from "./package-checks.js";
 import { spawnPiInstall } from "./pi-installer.js";
 import { findLegacySiblings, pruneLegacySiblings } from "./prune-legacy-siblings.js";
-import type { SiblingPlugin } from "./siblings.js";
+import { type SiblingPlugin, WEB_PROVIDERS } from "./siblings.js";
 import { toErrorMessage } from "./utils.js";
 
 const INSTALL_TIMEOUT_MS = 120_000;
@@ -34,13 +34,27 @@ const msgLegacyPruned = (entries: string[]) =>
 type UI = {
 	notify: (msg: string, sev: "info" | "warning" | "error") => void;
 	confirm: (title: string, body: string) => Promise<boolean>;
+	select: (title: string, options: string[]) => Promise<string | undefined>;
 };
 
-function buildConfirmBody(missing: SiblingPlugin[], legacyEntries: string[]): string {
+type PendingInstall = {
+	plugin: SiblingPlugin;
+	kind: "required" | "web provider";
+};
+
+async function chooseWebProvider(ui: UI): Promise<SiblingPlugin | undefined> {
+	const choice = await ui.select(
+		"Choose web search provider",
+		WEB_PROVIDERS.map((provider) => provider.pkg),
+	);
+	return WEB_PROVIDERS.find((provider) => provider.pkg === choice);
+}
+
+function buildConfirmBody(missing: PendingInstall[], legacyEntries: string[]): string {
 	const lines: string[] = ["rpiv-pi will apply the following changes:", ""];
 	if (missing.length > 0) {
 		lines.push("Install via `pi install`:");
-		for (const m of missing) lines.push(`  • ${m.pkg}  (required — provides ${m.provides})`);
+		for (const m of missing) lines.push(`  • ${m.plugin.pkg}  (${m.kind} — provides ${m.plugin.provides})`);
 		lines.push("");
 	}
 	if (legacyEntries.length > 0) {
@@ -65,7 +79,21 @@ async function handleSetupCommand(_args: string, ctx: { hasUI: boolean; ui: UI }
 		return;
 	}
 
-	const missing = findMissingSiblings();
+	const selectedProvider = await chooseWebProvider(ctx.ui);
+	if (!selectedProvider) {
+		ctx.ui.notify(MSG_CANCELLED, "info");
+		return;
+	}
+
+	const missingRequired = findMissingSiblings();
+	const installedWebProviders = findInstalledWebProviders();
+	const missingProvider = installedWebProviders.some((provider) => provider.pkg === selectedProvider.pkg)
+		? []
+		: [selectedProvider];
+	const missing: PendingInstall[] = [
+		...missingRequired.map((plugin) => ({ plugin, kind: "required" as const })),
+		...missingProvider.map((plugin) => ({ plugin, kind: "web provider" as const })),
+	];
 	const legacyEntries = findLegacySiblings();
 	if (missing.length === 0 && legacyEntries.length === 0) {
 		ctx.ui.notify(MSG_NOTHING_TO_DO, "info");
@@ -87,7 +115,10 @@ async function handleSetupCommand(_args: string, ctx: { hasUI: boolean; ui: UI }
 
 	if (missing.length === 0) return;
 
-	const { succeeded, failed } = await installMissing(ctx.ui, missing);
+	const { succeeded, failed } = await installMissing(
+		ctx.ui,
+		missing.map((m) => m.plugin),
+	);
 	ctx.ui.notify(buildReport(succeeded, failed), failed.length > 0 ? "warning" : "info");
 }
 

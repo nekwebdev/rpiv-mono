@@ -3,8 +3,14 @@
  * Pure utility — no ExtensionAPI.
  */
 
-import { SIBLINGS, type SiblingPlugin } from "./siblings.js";
+import { SIBLINGS, type SiblingPlugin, WEB_PROVIDERS } from "./siblings.js";
 import { readPiAgentSettings } from "./utils.js";
+
+function installedPackages(): string[] {
+	const result = readPiAgentSettings();
+	if (!result) return [];
+	return result.packages.filter((e): e is string => typeof e === "string");
+}
 
 /**
  * Return the SIBLINGS not currently installed.
@@ -12,8 +18,11 @@ import { readPiAgentSettings } from "./utils.js";
  * full snapshot and the missing subset should call this once and filter.
  */
 export function findMissingSiblings(): SiblingPlugin[] {
-	const result = readPiAgentSettings();
-	if (!result) return [...SIBLINGS];
-	const installed = result.packages.filter((e): e is string => typeof e === "string");
+	const installed = installedPackages();
 	return SIBLINGS.filter((s) => !installed.some((entry) => s.matches.test(entry)));
+}
+
+export function findInstalledWebProviders(): SiblingPlugin[] {
+	const installed = installedPackages();
+	return WEB_PROVIDERS.filter((provider) => installed.some((entry) => provider.matches.test(entry)));
 }

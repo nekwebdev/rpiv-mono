@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { LEGACY_SIBLINGS, SIBLINGS } from "./siblings.js";
+import { LEGACY_SIBLINGS, SIBLINGS, WEB_PROVIDERS } from "./siblings.js";
 
 describe("SIBLINGS registry", () => {
-	it("contains 7 entries (pi-subagents at SIBLINGS[0] — tintinweb fork is the dispatch runtime)", () => {
-		expect(SIBLINGS).toHaveLength(7);
+	it("contains 6 required entries (pi-subagents at SIBLINGS[0] — tintinweb fork is the dispatch runtime)", () => {
+		expect(SIBLINGS).toHaveLength(6);
 	});
 
 	it("lists @tintinweb/pi-subagents at SIBLINGS[0]", () => {
@@ -16,6 +16,10 @@ describe("SIBLINGS registry", () => {
 
 	it("does NOT list rpiv-btw (standalone-only — rpiv-pi has no runtime dependency on it)", () => {
 		expect(SIBLINGS.find((s) => s.pkg === "npm:@juicesharp/rpiv-btw")).toBeUndefined();
+	});
+
+	it("does NOT list rpiv-web-tools (optional web provider)", () => {
+		expect(SIBLINGS.find((s) => s.pkg === "npm:@juicesharp/rpiv-web-tools")).toBeUndefined();
 	});
 
 	for (const s of SIBLINGS) {
@@ -44,6 +48,28 @@ describe("SIBLINGS registry", () => {
 		for (const s of SIBLINGS) {
 			expect(s.pkg.length).toBeGreaterThan(0);
 			expect(s.provides.length).toBeGreaterThan(0);
+		}
+	});
+});
+
+describe("WEB_PROVIDERS registry", () => {
+	it("lists initial supported web providers", () => {
+		expect(WEB_PROVIDERS.map((p) => p.pkg)).toEqual(["npm:@juicesharp/rpiv-web-tools", "npm:pi-web-access"]);
+	});
+
+	for (const provider of WEB_PROVIDERS) {
+		it(`${provider.pkg} — self-match against settings.json line shape`, () => {
+			expect(provider.matches.test(provider.pkg.replace(/^npm:/, ""))).toBe(true);
+		});
+		it(`${provider.pkg} — case-insensitive match`, () => {
+			expect(provider.matches.test(provider.pkg.toUpperCase().replace(/^NPM:/, ""))).toBe(true);
+		});
+	}
+
+	it("every entry has non-empty pkg + provides", () => {
+		for (const provider of WEB_PROVIDERS) {
+			expect(provider.pkg.length).toBeGreaterThan(0);
+			expect(provider.provides.length).toBeGreaterThan(0);
 		}
 	});
 });

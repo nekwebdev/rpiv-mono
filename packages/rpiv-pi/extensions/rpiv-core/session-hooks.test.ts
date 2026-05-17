@@ -4,7 +4,10 @@ import { join } from "node:path";
 import { createMockCtx, createMockPi, stubGitExec } from "@juicesharp/rpiv-test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("./package-checks.js", () => ({ findMissingSiblings: vi.fn(() => []) }));
+vi.mock("./package-checks.js", () => ({
+	findMissingSiblings: vi.fn(() => []),
+	findInstalledWebProviders: vi.fn(() => [{ pkg: "npm:pi-web-access", matches: /./, provides: "web search" }]),
+}));
 vi.mock("./agents.js", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("./agents.js")>();
 	return {
@@ -30,7 +33,7 @@ import type { SyncResult } from "./agents.js";
 import { cleanupPerCwdAgents, SYNC_OP, syncBundledAgents } from "./agents.js";
 import { clearGitContextCache, getGitContext, resetInjectedMarker, takeGitContextIfChanged } from "./git-context.js";
 import { clearInjectionState } from "./guidance.js";
-import { findMissingSiblings } from "./package-checks.js";
+import { findInstalledWebProviders, findMissingSiblings } from "./package-checks.js";
 import { registerSessionHooks } from "./session-hooks.js";
 
 const emptySync: SyncResult = {
@@ -131,7 +134,44 @@ describe("session_start hook — notifications", () => {
 		expect(warnCall?.[0]).toContain("rpiv-pi requires 2 sibling");
 		expect(warnCall?.[0]).toContain("@juicesharp/rpiv-advisor");
 		expect(warnCall?.[0]).toContain("@juicesharp/rpiv-args");
+		expect(warnCall?.[0]).not.toContain("web search extension");
 		expect(warnCall?.[0]).not.toContain("npm:");
+	});
+
+	it("prepends web search provider requirement when no WEB_PROVIDERS are installed", async () => {
+		vi.mocked(syncBundledAgents).mockReturnValueOnce(emptySync);
+		vi.mocked(findInstalledWebProviders).mockReturnValueOnce([]);
+		vi.mocked(findMissingSiblings).mockReturnValueOnce([
+			{ pkg: "npm:@juicesharp/rpiv-advisor", matches: /./, provides: "x" },
+			{ pkg: "npm:@juicesharp/rpiv-args", matches: /./, provides: "y" },
+		] as never);
+		const { pi, captured } = createMockPi({ exec: stubGitExec({}) as never });
+		registerSessionHooks(pi);
+		const ctx = createMockCtx({ cwd: projectDir, hasUI: true });
+		await captured.events.get("session_start")?.[0]({ reason: "startup" } as never, ctx as never);
+		const warnCall = (ctx.ui.notify as ReturnType<typeof vi.fn>).mock.calls.find((c) => c[1] === "warning");
+		expect(warnCall).toBeDefined();
+		expect(warnCall?.[0]).toContain(
+			"rpiv-pi requires 1 web search extension: @juicesharp/rpiv-web-tools or pi-web-access.",
+		);
+		expect(warnCall?.[0]).toContain("Also requires 2 sibling extension(s):");
+		expect(warnCall?.[0]).toContain("@juicesharp/rpiv-advisor");
+		expect(warnCall?.[0]).toContain("@juicesharp/rpiv-args");
+	});
+
+	it("warns when only WEB_PROVIDERS are missing", async () => {
+		vi.mocked(syncBundledAgents).mockReturnValueOnce(emptySync);
+		vi.mocked(findInstalledWebProviders).mockReturnValueOnce([]);
+		vi.mocked(findMissingSiblings).mockReturnValueOnce([]);
+		const { pi, captured } = createMockPi({ exec: stubGitExec({}) as never });
+		registerSessionHooks(pi);
+		const ctx = createMockCtx({ cwd: projectDir, hasUI: true });
+		await captured.events.get("session_start")?.[0]({ reason: "startup" } as never, ctx as never);
+		const warnCall = (ctx.ui.notify as ReturnType<typeof vi.fn>).mock.calls.find((c) => c[1] === "warning");
+		expect(warnCall).toBeDefined();
+		expect(warnCall?.[0]).toBe(
+			"rpiv-pi requires 1 web search extension: @juicesharp/rpiv-web-tools or pi-web-access.",
+		);
 	});
 
 	it("skips notifications when !hasUI", async () => {

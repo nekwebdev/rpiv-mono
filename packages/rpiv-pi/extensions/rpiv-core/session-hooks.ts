@@ -28,7 +28,7 @@ import {
 	takeGitContextIfChanged,
 } from "./git-context.js";
 import { clearInjectionState, handleToolCallGuidance, injectRootGuidance } from "./guidance.js";
-import { findMissingSiblings } from "./package-checks.js";
+import { findInstalledWebProviders, findMissingSiblings } from "./package-checks.js";
 
 const THOUGHTS_DIRS = [
 	"thoughts/shared/discover",
@@ -43,8 +43,12 @@ const msgAgentsAdded = (n: number) => `Copied ${n} rpiv-pi agent(s) to ~/.pi/age
 const msgAgentsHealed = (parts: string[]) => `Synced bundled agent(s): ${parts.join(", ")}.`;
 const msgAgentsDrift = (parts: string[]) => `${parts.join(", ")} agent(s). Run /rpiv-update-agents to sync.`;
 const msgAgentsErrors = (n: number) => `Agent sync reported ${n} error(s). Run /rpiv-update-agents for details.`;
-const msgMissingSiblings = (n: number, list: string) =>
-	`rpiv-pi requires ${n} sibling extension(s): ${list}. Run /rpiv-setup to install them.`;
+const msgMissingWebProvider = () =>
+	"rpiv-pi requires 1 web search extension: @juicesharp/rpiv-web-tools or pi-web-access.";
+const msgMissingSiblings = (n: number, list: string, webProviderInstalled = true) => {
+	const siblingMsg = `${webProviderInstalled ? "rpiv-pi requires" : "Also requires"} ${n} sibling extension(s): ${list}. Run /rpiv-setup to install them.`;
+	return webProviderInstalled ? siblingMsg : `${msgMissingWebProvider()} ${siblingMsg}`;
+};
 
 type UI = { notify: (msg: string, sev: "info" | "warning" | "error") => void };
 
@@ -182,6 +186,17 @@ function notifyCleanup(ui: UI, result: CleanupResult): void {
 
 function warnMissingSiblings(ui: UI): void {
 	const missing = findMissingSiblings();
-	if (missing.length === 0) return;
-	ui.notify(msgMissingSiblings(missing.length, missing.map((m) => m.pkg.replace(/^npm:/, "")).join(", ")), "warning");
+	const webProviderInstalled = findInstalledWebProviders().length > 0;
+	if (missing.length === 0) {
+		if (!webProviderInstalled) ui.notify(msgMissingWebProvider(), "warning");
+		return;
+	}
+	ui.notify(
+		msgMissingSiblings(
+			missing.length,
+			missing.map((m) => m.pkg.replace(/^npm:/, "")).join(", "),
+			webProviderInstalled,
+		),
+		"warning",
+	);
 }
